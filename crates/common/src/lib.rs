@@ -837,5 +837,42 @@ mod tests {
             let json = serde_json::to_string(&proof).unwrap();
             assert_eq!(json, r#""""#);
         }
+
+        #[test]
+        fn real_proof_round_trip_no_truncation() {
+            let file = std::fs::read_to_string(
+                std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("../../../starknet-privacy/prove-response.json"),
+            )
+            .expect("Failed to read prove-response.json");
+
+            let response: serde_json::Value =
+                serde_json::from_str(&file).expect("Failed to parse JSON");
+            let original_base64 = response["result"]["proof"]
+                .as_str()
+                .expect("proof field is not a string");
+
+            // Deserialize: base64 -> Proof
+            let json_input = format!(r#""{}""#, original_base64);
+            let proof: Proof =
+                serde_json::from_str(&json_input).expect("Failed to deserialize proof");
+
+            // Serialize: Proof -> base64
+            let json_output = serde_json::to_string(&proof).expect("Failed to serialize proof");
+            // Strip surrounding quotes
+            let output_base64 = &json_output[1..json_output.len() - 1];
+
+            assert_eq!(
+                original_base64.len(),
+                output_base64.len(),
+                "base64 string length mismatch: input {} vs output {}",
+                original_base64.len(),
+                output_base64.len()
+            );
+            assert_eq!(
+                original_base64, output_base64,
+                "base64 content differs after round-trip"
+            );
+        }
     }
 }

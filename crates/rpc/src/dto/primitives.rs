@@ -5,6 +5,31 @@ pub use pathfinder_crypto::*;
 pub use pathfinder_primitives::*;
 pub use strings::*;
 
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct StorageResponseFlags(pub Vec<StorageResponseFlag>);
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum StorageResponseFlag {
+    IncludeLastUpdateBlock,
+}
+
+impl crate::dto::DeserializeForVersion for StorageResponseFlag {
+    fn deserialize(value: crate::dto::Value) -> Result<Self, serde_json::Error> {
+        let value: String = value.deserialize()?;
+        match value.as_str() {
+            "INCLUDE_LAST_UPDATE_BLOCK" => Ok(Self::IncludeLastUpdateBlock),
+            _ => Err(serde::de::Error::custom("Invalid response flag")),
+        }
+    }
+}
+
+impl crate::dto::DeserializeForVersion for StorageResponseFlags {
+    fn deserialize(value: crate::dto::Value) -> Result<Self, serde_json::Error> {
+        let array = value.deserialize_array(StorageResponseFlag::deserialize)?;
+        Ok(Self(array))
+    }
+}
+
 pub mod hex_str {
     use std::borrow::Cow;
 
