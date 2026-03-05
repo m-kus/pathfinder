@@ -679,6 +679,65 @@ impl Transaction<'_> {
         .map_err(|e| e.into())
     }
 
+    pub fn storage_value_with_block_number(
+        &self,
+        block: BlockId,
+        contract_address: ContractAddress,
+        key: StorageAddress,
+    ) -> anyhow::Result<Option<(StorageValue, BlockNumber)>> {
+        match block {
+            BlockId::Latest => {
+                let mut stmt = self.inner().prepare_cached(
+                    r"
+                    SELECT storage_value, block_number
+                    FROM storage_updates
+                    JOIN contract_addresses ON contract_addresses.id = storage_updates.contract_address_id
+                    JOIN storage_addresses ON storage_addresses.id = storage_updates.storage_address_id
+                    WHERE contract_address = ? AND storage_address = ?
+                    ORDER BY block_number DESC LIMIT 1
+                    ",
+                )?;
+                stmt.query_row(params![&contract_address, &key], |row| {
+                    Ok((row.get_storage_value(0)?, row.get_block_number(1)?))
+                })
+            }
+            BlockId::Number(number) => {
+                let mut stmt = self.inner().prepare_cached(
+                    r"
+                    SELECT storage_value, block_number
+                    FROM storage_updates
+                    JOIN contract_addresses ON contract_addresses.id = storage_updates.contract_address_id
+                    JOIN storage_addresses ON storage_addresses.id = storage_updates.storage_address_id
+                    WHERE contract_address = ? AND storage_address = ? AND block_number <= ?
+                    ORDER BY block_number DESC LIMIT 1
+                    ",
+                )?;
+                stmt.query_row(params![&contract_address, &key, &number], |row| {
+                    Ok((row.get_storage_value(0)?, row.get_block_number(1)?))
+                })
+            }
+            BlockId::Hash(hash) => {
+                let mut stmt = self.inner().prepare_cached(
+                    r"
+                    SELECT storage_value, block_number
+                    FROM storage_updates
+                    JOIN contract_addresses ON contract_addresses.id = storage_updates.contract_address_id
+                    JOIN storage_addresses ON storage_addresses.id = storage_updates.storage_address_id
+                    WHERE contract_address = ? AND storage_address = ? AND block_number <= (
+                        SELECT number FROM block_headers WHERE hash = ?
+                    )
+                    ORDER BY block_number DESC LIMIT 1
+                    ",
+                )?;
+                stmt.query_row(params![&contract_address, &key, &hash], |row| {
+                    Ok((row.get_storage_value(0)?, row.get_block_number(1)?))
+                })
+            }
+        }
+        .optional()
+        .map_err(|e| e.into())
+    }
+
     pub fn contract_exists(
         &self,
         contract_address: ContractAddress,
