@@ -515,7 +515,7 @@ mod v2 {
 
         extracted_sierra_program.validate_version_compatible(
             cairo_lang_starknet_classes::allowed_libfuncs::ListSelector::ListName(
-                cairo_lang_starknet_classes::allowed_libfuncs::BUILTIN_EXPERIMENTAL_LIBFUNCS_LIST
+                cairo_lang_starknet_classes::allowed_libfuncs::BUILTIN_ALL_LIBFUNCS_LIST
                     .to_string(),
             ),
         ).context("Validating Sierra class")?;
